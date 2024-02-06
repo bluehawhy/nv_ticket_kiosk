@@ -4,6 +4,9 @@
 '''
 Created on 2018. 11. 15.
 @author: miskang
+#update list
+2023-07-14 : add jira url 
+2023-08-04 : add login status
 '''
 
 # This script shows how to connect to a JIRA instance with a
@@ -14,14 +17,13 @@ import sys
 import json
 import requests
 
-from . import logger
-from . import playload
-from . import config
+from . import loggas
+from . import jason
+from . import configus
 
 config_path = os.path.join('static','config','config.json')
-config_data =config.load_config(config_path)
-jira_url = config_data['jira_url']
-logging = logger.logger
+config_data =configus.load_config(config_path)
+logging = loggas.logger
 # =============================================================================================
 
 headers = {
@@ -33,64 +35,64 @@ headers = {
     'Content-Type': 'application/json',  # ;charset=UTF-8',
     'X-Atlassian-Token': 'no-check'}
 
-
-def initsession(username, password):
-    logging.info("start log in from rest.py")
-
-    # Create Session
-    logging.debug("make session")
-    s = requests.Session()
-    login_url = jira_url+'/rest/auth/1/session'
-    payload = {"username": username, "password": password}
+def initsession(username, password, jira_url = config_data['jira_url'], cert=None):
+    logging.debug("start log in from rest.py")
     session = None
     session_info = None
+    status_login = False
+    # Create Session
+    logging.debug("make session")
+    session = requests.Session()
+    login_url = jira_url+'/rest/auth/1/session'
+    payload = {"username": username, "password": password}
+    logging.debug(login_url)
     try:
         logging.debug("try log in")
-        session_info = s.post(login_url, data=json.dumps(payload), headers=headers, timeout=30)
+        session_info = session.post(login_url, data=json.dumps(payload), headers=headers, timeout=30,cert=cert)
     except Exception as e:    # This is the correct syntax
-        logging.info("Fail to log in Reason: %s" % str(e))
+        logging.debug("Fail to log in Reason: %s" %str(e))
         session_info = None
     else:
         if session_info.status_code == 200:
-            logging.info("log in success!")
+            logging.debug("log in success!")
+            status_login = True
         else:
-            logging.info("Fail to log in Reason: %s" % str(session_info.text))
+            logging.debug("Fail to log in Reason: %s" %str(session_info.text))
             logging.debug(session_info)
-            session_info = None
-    session = s
-    return session,session_info
+    return session,session_info, status_login
 
 
 class Handler_Jira():
     '''docstring for Handler_Jira'''
 
-    def __init__(self, session):
+    def __init__(self, session, jira_url):
         self.session = session
+        self.jira_url = jira_url
 
     def searchIssueCountByQuery(self, query):
         self.all_issues = {}
         self.issue = {}
-        self.url = jira_url+'/rest/api/2/search?startAt=0&maxResults=1&jql=%s' % query
-        self.response = self.session.get(self.url, timeout=100.0).json()
+        rest_url = self.jira_url+'/rest/api/2/search?startAt=0&maxResults=1&jql=%s' %query
+        self.response = self.session.get(rest_url, timeout=100.0).json()
         self.issuecount = self.response['total']
         return self.issuecount
 
     def searchIssueByQuery(self, query):
         self.all_issues = {}
         self.issue = {}
-        self.url = jira_url+'/rest/api/2/search?startAt=0&maxResults=1&jql=%s' % query
-        self.response = self.session.get(self.url, timeout=100.0).json()
+        rest_url = self.jira_url+'/rest/api/2/search?startAt=0&maxResults=1&jql=%s' %query
+        self.response = self.session.get(rest_url, timeout=100.0).json()
         self.issuecount = self.response['total']
-        logging.debug('issue count: %s' % self.issuecount)
+        #logging.debug('issue count: %s' %self.issuecount)
         self.start = 0
         self.maxResults = 1000
         while self.start <= self.issuecount:  # Spaces around !=. Makes Guido van Rossum happy.
-            self.url = jira_url+'/rest/api/2/search?startAt=%s&maxResults=%s&jql=%s' % (
+            rest_url = self.jira_url+'/rest/api/2/search?startAt=%s&maxResults=%s&jql=%s' %(
             self.start, self.maxResults, query)
-            logging.debug(self.url)
-            self.response = self.session.get(self.url, timeout=100.0).json()
+            #logging.debug(rest_url)
+            self.response = self.session.get(rest_url, timeout=100.0).json()
             for self.re in self.response['issues']:
-                # print(self.re)
+                # logging.debug(self.re)
                 self.issue = {str(self.re['key']): self.re['fields']}
                 self.all_issues.update(self.issue)
             self.start += 1000
@@ -99,41 +101,41 @@ class Handler_Jira():
 
     def searchIssueByKey(self, key):
         self.key = key
-        self.url = jira_url+'/rest/api/2/issue/%s' % self.key
-        self.response = self.session.get(self.url, timeout=10.0).json()
+        rest_url = self.jira_url+'/rest/api/2/issue/%s' %self.key
+        self.response = self.session.get(rest_url, timeout=10.0).json()
         return self.response
 
     def createTicket(self, payloads):
         # ============= init =====================
-        self.url = jira_url+'/rest/api/2/issue'
+        rest_url = self.jira_url+'/rest/api/2/issue'
         self.payload = payloads
         logging.debug(self.payload)
-        self.response = self.session.post(self.url, data=playload.makeplayload(self.payload), headers=headers,
+        self.response = self.session.post(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                           timeout=10.0)
         self.code = self.response.status_code
         self.info = json.loads(self.response.text)
-        logging.debug('code :%s' % self.code)
-        logging.debug('info :%s' % self.info)
+        logging.debug('code :%s' %self.code)
+        logging.debug('info :%s' %self.info)
         return self.response
 
     def updateissue(self, key, payloads):
         # update issue
         self.key = key
-        self.url = jira_url+'/rest/api/2/issue/%s' % self.key
+        rest_url = self.jira_url+'/rest/api/2/issue/%s' %self.key
         self.payload = payloads
         self.headers = headers
-        # logging.debug("update url: %s" %self.url)
-        self.response = self.session.put(self.url, data=playload.makeplayload(self.payload), headers=headers,
+        # logging.debug("update url: %s" %rest_url)
+        self.response = self.session.put(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                          timeout=10.0)
         logging.debug(self.response.text)
-        logging.debug("Done: %s and code: %s" % (self.key, self.response.status_code))
+        logging.debug("Done: %s and code: %s" %(self.key, self.response.status_code))
         return self.response
 
     def createLinked(self, key, linkedkey, link_id):
         self.key = key
         self.linkedkey = linkedkey
         self.link_id = link_id
-        self.url = jira_url+'/rest/api/2/issue/%s' % self.key
+        rest_url = self.jira_url+'/rest/api/2/issue/%s' %self.key
         self.payload = {
             "fields": {
             },
@@ -143,13 +145,13 @@ class Handler_Jira():
                         "type": {
                             "id":"%s" %self.link_id},
                         "outwardIssue": {
-                            "key": "%s" % self.linkedkey}
+                            "key": "%s" %self.linkedkey}
                     }
                 }
                 ]
             }
         }
-        self.response = self.session.put(self.url, data=playload.makeplayload(self.payload), headers=headers,
+        self.response = self.session.put(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                          timeout=10.0)
         logging.debug("Ticket Link done! %s main issue: %s linked issue: %s" %(self.response.status_code,self.key, self.linkedkey))
         return self.response
@@ -157,31 +159,31 @@ class Handler_Jira():
     def deleteLinked(self, key, issuedlink):
         self.issuedlink = issuedlink
         self.key = key
-        # self.url = jira_url+'/rest/api/3/issue/%s/remotelink/%s' %(self.key,issuedlink)
-        self.url = jira_url+'/rest/api/2/issueLink/%s' % issuedlink
-        logging.debug('start delete linkissue:' + self.url)
-        self.response = self.session.delete(self.url, headers=headers, timeout=10.0)
-        # self.response = self.session.delete(self.url, data=playload.makeplayload(self.payload), headers=headers)
+        # rest_url = jira_url+'/rest/api/3/issue/%s/remotelink/%s' %(self.key,issuedlink)
+        rest_url = self.jira_url+'/rest/api/2/issueLink/%s' %issuedlink
+        logging.debug('start delete linkissue:' + rest_url)
+        self.response = self.session.delete(rest_url, headers=headers, timeout=10.0)
+        # self.response = self.session.delete(rest_url, data=playload.makeplayload(self.payload), headers=headers)
         logging.debug(self.response.status_code)
-        logging.debug("Done: %s linked issue: %s" % (self.key, issuedlink))
+        logging.debug("Done: %s linked issue: %s" %(self.key, issuedlink))
 
     def getusername(self):
-        self.url = jira_url+'/rest/gadget/1.0/currentUser'
-        self.response = self.session.get(self.url, headers=headers).json()
+        rest_url = self.jira_url+'/rest/gadget/1.0/currentUser'
+        self.response = self.session.get(rest_url, headers=headers).json()
         return self.response['username']
 
     def getworklogs(self, key):
         self.key = key
-        self.url = jira_url+'/rest/api/2/issue/%s/worklog/' % key
-        # self.response = self.session.get(self.url, headers=headers)
-        self.response = self.session.get(self.url, timeout=10.0).json()
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/worklog/' %key
+        # self.response = self.session.get(rest_url, headers=headers)
+        self.response = self.session.get(rest_url, timeout=10.0).json()
         return self.response
 
     def getcomment(self, key):
         self.key = key
-        self.url = jira_url+'/rest/api/2/issue/%s/comment' % key
-        # self.response = self.session.get(self.url, headers=headers)
-        self.response = self.session.get(self.url, timeout=10.0).json()
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/comment' %key
+        # self.response = self.session.get(rest_url, headers=headers)
+        self.response = self.session.get(rest_url, timeout=10.0).json()
         return self.response
 
     def get_attachment(self, key = 'None'):
@@ -194,11 +196,11 @@ class Handler_Jira():
     def addcommnet(self, key, comment):
         self.key = key
         self.comment = comment
-        self.url = jira_url+'/rest/api/2/issue/%s/comment' % key
-        self.payload = {"body": "%s" % comment}
-        # print(self.payload)
-        # self.response = self.session.get(self.url, headers=headers)
-        self.response = self.session.post(self.url, data=playload.makeplayload(self.payload), headers=headers,
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/comment' %key
+        self.payload = {"body": "%s" %comment}
+        # logging.debug(self.payload)
+        # self.response = self.session.get(rest_url, headers=headers)
+        self.response = self.session.post(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                           timeout=10.0)
         return self.response
 
@@ -218,15 +220,15 @@ class Handler_Jira():
     
     def getworklogdetail(self, id):
         self.id = id
-        self.url = jira_url+'/rest/tempo-timesheets/3/worklogs/%s' % id
-        # self.response = self.session.get(self.url, headers=headers)
-        self.response = self.session.get(self.url, timeout=10.0).json()
+        rest_url = self.jira_url+'/rest/tempo-timesheets/3/worklogs/%s' %id
+        # self.response = self.session.get(rest_url, headers=headers)
+        self.response = self.session.get(rest_url, timeout=10.0).json()
         return self.response
 
     def trasit(self, key, status):
         logging.debug('get stuts')
-        self.url = jira_url+'/rest/api/2/issue/%s/transitions' % key
-        self.status = self.session.get(self.url, headers=headers, timeout=10.0)
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/transitions' %key
+        self.status = self.session.get(rest_url, headers=headers, timeout=10.0)
         self.transitions = json.loads(self.status.text)['transitions']
         self.dict_transition = {}
         for self.transition in self.transitions:
@@ -236,69 +238,87 @@ class Handler_Jira():
         self.status = status
         if self.status in self.dict_transition.keys():
             self.id = self.dict_transition[self.status]
-            self.payload = {"transition": {"id": "%s" % self.id}}
-            self.url = jira_url+'/rest/api/2/issue/%s/transitions?expand=transitions.fields' % self.key
-            self.r = self.session.post(self.url, data=playload.makeplayload(self.payload), headers=headers,
+            self.payload = {"transition": {"id": "%s" %self.id}}
+            rest_url = self.jira_url+'/rest/api/2/issue/%s/transitions?expand=transitions.fields' %self.key
+            self.r = self.session.post(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                        timeout=10.0)
             return self.r
     
     def upload_attachment(self, key = 'None', file='None'):
-        self.url = jira_url+"/rest/api/2/issue/%s/attachments"  % key
+        rest_url = self.jira_url+"/rest/api/2/issue/%s/attachments"  %key
         self.upload_file = open(file,"rb")
         self.files = {"file": self.upload_file}
-        print(file)
-        print(self.url)
+        logging.debug(file)
+        logging.debug(rest_url)
         self.headers = {
             'Cache-Control': 'no-cache',
             'X-Atlassian-Token': 'no-check'}
-        self.r = self.session.post(self.url, files=self.files, headers=self.headers)
+        self.r = self.session.post(rest_url, files=self.files, headers=self.headers)
+        return self.r
+
+
+    def web_link(self,key = None,title = None,url = None):
+        self.playload = {
+            "object": {"url": "%s" %url,"title": "%s" %title}
+                }
+        url = f'{self.jira_url}/rest/api/2/issue/{key}/remotelink'
+        self.r = self.session.post(url, data=jason.makeplayload(self.playload), headers=headers,
+                                          timeout=10.0)
         return self.r
 
     # =================================== LOG WORK =============================================
 
     def submitlogwork(self, key, playloads):
-        self.url = jira_url+'/rest/api/2/issue/%s/worklog/' % key
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/worklog/' %key
         self.playload = playloads
-        self.response = self.session.post(self.url, data=playload.makeplayload(self.playload), headers=headers,
+        self.response = self.session.post(rest_url, data=jason.makeplayload(self.playload), headers=headers,
                                           timeout=10.0)
         return self.response
 
 
 class Handler_TestCycle():
-    def __init__(self, session):
+    def __init__(self, session, jira_url):
         self.session = session
         self.zephyr_headers = {
             'content-type': "application/json",
             'cache-control': "no-cache",
             'postman-token': "4fed291d-69eb-2c66-8184-acc9f8eff251"
         }
+        self.jira_url = jira_url
 
     # ==========================Test cycle===============================================================
     def getusername(self):
-        self.url = jira_url+'/rest/gadget/1.0/currentUser'
-        # self.response = self.session.get(self.url, headers=headers)
-        self.response = self.session.get(self.url, headers=self.zephyr_headers, timeout=10.0).json()
+        rest_url = self.jira_url+'/rest/gadget/1.0/currentUser'
+        # self.response = self.session.get(rest_url, headers=headers)
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0).json()
         return self.response['username']
 
     def getTestCycle(self):
         # /rest/zapi/latest/execution?issueId=&projectId=&versionId=&cycleId=&offset=&action=&sorter=&expand=&limit=&folderId=
         self.type = 'version-16024-cycle-3111'
-        self.url = jira_url+"/rest/zapi/latest/execution?versionId=%s" % self.type
-        self.response = self.session.get(self.url, headers=self.zephyr_headers, timeout=10.0)
-        print(self.response)
-        print(self.response.text)
+        rest_url = self.jira_url+"/rest/zapi/latest/execution?versionId=%s" %self.type
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
+        logging.debug(self.response)
+        logging.debug(self.response.text)
 
     def getExecutionInfo(self, excution_id):
         # http://localhost:2990/jira/rest/zapi/latest/execution/id?expand=
-        self.url = jira_url+"/rest/zapi/latest/execution/%s?expand=" % excution_id
-        self.response = self.session.get(self.url, headers=self.zephyr_headers, timeout=10.0)
+        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s?expand=" %excution_id
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
     def updateExecution(self, excution_id=None, playloads=None):
         # http://localhost:2990/jira/rest/zapi/latest/execution/id/execute
-        self.url = jira_url+"/rest/zapi/latest/execution/%s/execute" % excution_id
+        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s/execute" %excution_id
         self.payloads = playloads
-        self.response = self.session.put(self.url, data=self.payloads,
+        self.response = self.session.put(rest_url, data=self.payloads,
+                                         headers=self.zephyr_headers, timeout=10.0)
+        return self.response
+    
+    def updateStep(self,stepid= None, playloads=None):
+        rest_url = self.jira_url+"/rest/zapi/latest/stepResult/%s" %stepid
+        self.payloads = playloads
+        self.response = self.session.put(rest_url, data=self.payloads,
                                          headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
@@ -306,20 +326,20 @@ class Handler_TestCycle():
         pass
 
     def get_TestCase(self, key):
-        self.url = jira_url+"/rest/zapi/latest/execution/%s/execute" % excution_id
-        self.response = self.session.get(self.url, headers=self.zephyr_headers, timeout=10.0)
+        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s/execute" %key
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
     def add_TestCase(self, key):
         self.key = key
-        print(self.key)
+        logging.debug(self.key)
 
     def getDefectList(self, excution_id):
-        self.url = jira_url+"/rest/zapi/latest/execution/%s/defects" % excution_id
-        self.response = self.session.get(self.url, headers=self.zephyr_headers, timeout=10.0)
+        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s/defects" %excution_id
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
     def modify_TestCase(self, key):
         self.key = key
-        print(self.key)
+        logging.debug(self.key)
 

@@ -1,34 +1,48 @@
-import os
+import os, sys
 
 
-from _src._api import logger, logging_message, config, rest
-from _src import ticket_kiosk, ticket_kiosk_ui
+#add internal libary
+from _src import ticket_kiosk_cmd, ticket_kiosk
 
+refer_api = "local"
+#refer_api = "global"
 
-logging= logger.logger
-logging_file_name = logger.log_full_name
+if refer_api == "global":
+    sys.path.append((os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
+    from _api import loggas, configus
+if refer_api == "local":
+    from _src._api import loggas, configus
+
+logging= loggas.logger
+logging_file_name = loggas.log_full_name
 
 config_path = os.path.join('static','config','config.json')
-message_path =config.load_config(config_path)['message_path']
+message_path =configus.load_config(config_path)['message_path']
 
-config_data = config.load_config(config_path)
-version = 'ticket kiosk v1.0'
+config_data = configus.load_config(config_path)
+version = 'ticket kiosk v1.01'
 
 revision_list=[
     'Revision list',
-    'v1.0 (2023-06-29) : initial release',
+    'v1.0 (2023-07-11) : initial release',
+    'v1.01 (2023-07-11) : bug fix',
     '==============================================================================='
     ]
 
 def message_on():
     if os.path.isfile(message_path):
-        logging_message.remove_message(message_path)
+        loggas.remove_message(message_path)
     for revision in revision_list:
-        logging_message.input_message(path = message_path,message = revision, settime= False)
+        loggas.input_message(path = message_path,message = revision, settime= False)
     return 0
 
+def debug_mode():
+    ticket_kiosk.import_ticket(user=config_data['id'],password=config_data['password'],exce_path=config_data['last_file_path'])
+    return 0
+
+def prod_mode():
+    cmd = ticket_kiosk_cmd.cmd_line(version,revision_list)
+    cmd.main()
 
 if __name__ =='__main__':
-    pa = r'D:\_source\source_code\nv_ticket_kiosk\static\excel\template.xlsx'
-    session,session_info = rest.initsession('===','==')
-    work_sheet = ticket_kiosk.import_ticket(exce_path=pa, session = session)
+    prod_mode()

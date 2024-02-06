@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # excel.py
 # -*- coding: utf-8 -*-
-from fileinput import filename
 
 '''
 Created on 2019. 1. 14.
@@ -10,7 +9,6 @@ Created on 2019. 1. 14.
 
 # import requests library for excel call
 import openpyxl
-
 
 # =============================================================================================
 

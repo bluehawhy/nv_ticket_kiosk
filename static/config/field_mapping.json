@@ -1,0 +1,61 @@
+{
+    "field_list":{
+        "summary":"summary",
+        "description":"description",
+        "priority":"priority",
+        "project":"project",
+        "issuetype":"issuetype", 
+        "test_environment":"customfield_12238",
+        "SW_Version":"customfield_10824",
+        "HU_Version":"customfield_10826",
+        "Map_Version (List)":"customfield_12242",
+        "HW_Version":"customfield_12204",
+        "occurrence":"customfield_11101",
+        "ticket_category":"customfield_13003",
+        "variant":"customfield_11102",
+        "system_component":"customfield_13005",
+        "System (List)":"customfield_14025",
+        "market":"customfield_11223",
+        "Found Date": "customfield_10136",
+        "Entry Code": "customfield_11103"
+    },
+	"ticket": {
+		"project": {
+			"NTG7": "DAIMS",
+			"Gen20x.i2": "GEN20X",
+			"Gen20x.i3": "GEN20XI3"
+		},
+		"map_version_market": [
+			"SEA",
+			"NAM",
+			"N.AMERICA",
+			"JPN",
+			"ECE",
+			"EUROPE",
+			"KOR",
+			"IND",
+			"AUS",
+			"MEA",
+			"SAM",
+			"CHN"
+		],
+		"market_variant": {
+			"SEA": "SE-Asia",
+			"NAM": "NAM",
+			"N.AMERICA":"NAM",
+			"JPN": "Japan",
+			"ECE": "ECE",
+			"EUROPE": "ECE",
+			"KOR": "Korea",
+			"IND": "India",
+			"AUS": "AUS",
+			"MEA": "MEA",
+			"SAM": "SAM",
+			"CHN": "China"
+		},
+		"project_ignore_mapversion": [
+			"Gen20x.i3"
+		]
+    }
+
+}
