@@ -12,6 +12,10 @@ def makeplayload(dic):
     data = json.dumps(dic,ensure_ascii=False).encode('utf8')
     return data
 
+def make_json(str):
+    data = json.loads(str)
+    return data
+
 def make_playload(dict_data,dict_config):
     temp_payloads = {}
     temp_json =''

@@ -1,8 +1,10 @@
 # Hidden directory on Windows (no dot)
 __pycache__/
-config.json
 *.xlsx
 template/readMe/
 *.log
 output.txt
 test_cycle_template
+static/config/field_mapping.json
+static/config/ticket.json
+static/config/config.json

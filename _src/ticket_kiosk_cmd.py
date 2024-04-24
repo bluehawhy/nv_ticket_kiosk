@@ -1,8 +1,16 @@
-import os
+import os, sys
 
 
 from _src import ticket_kiosk
-from _src._api import configus
+
+refer_api = "local"
+#refer_api = "global"
+
+if refer_api == "global":
+    sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
+    from _api import configus
+if refer_api == "local":
+    from _src._api import configus
 
 
 config_path = os.path.join('static','config','config.json')

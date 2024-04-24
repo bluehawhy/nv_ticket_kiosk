@@ -28,7 +28,7 @@ logging = loggas.logger
 
 headers = {
     'Cache-Control': 'no-cache',
-    # 'Accept': 'application/json;charset=UTF-8',  # default for REST
+    'Accept': 'application/json;charset=UTF-8',  # default for REST
     # 'Accept': 'application/json',  # default for REST
     # 'Pragma': 'no-cache',
     # 'Expires': 'Thu, 01 Jan 1970 00:00:00 GMT'
@@ -48,7 +48,7 @@ def initsession(username, password, jira_url = config_data['jira_url'], cert=Non
     logging.debug(login_url)
     try:
         logging.debug("try log in")
-        session_info = session.post(login_url, data=json.dumps(payload), headers=headers, timeout=30,cert=cert)
+        session_info = session.post(login_url, data=json.dumps(payload), headers=headers, timeout=120,cert=cert)
     except Exception as e:    # This is the correct syntax
         logging.debug("Fail to log in Reason: %s" %str(e))
         session_info = None
@@ -109,14 +109,29 @@ class Handler_Jira():
         # ============= init =====================
         rest_url = self.jira_url+'/rest/api/2/issue'
         self.payload = payloads
-        logging.debug(self.payload)
         self.response = self.session.post(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                           timeout=10.0)
-        self.code = self.response.status_code
-        self.info = json.loads(self.response.text)
-        logging.debug('code :%s' %self.code)
-        logging.debug('info :%s' %self.info)
+        logging.debug(f'code: {self.response.status_code} // info: {json.loads(self.response.text)}')
         return self.response
+    
+    def update_customfield(self, key, customfield,values):
+        ticket_info = self.searchIssueByKey(key)
+        if type(ticket_info['fields'][customfield]) is not None:
+            #no customfield so make new one.
+            ticket_category_fields = {}
+            ticket_category_fields['fields']={}
+            ticket_category_fields["fields"][customfield] = values
+            logging.debug('%s - %s' %(key,ticket_category_fields))
+            self.response = self.updateissue(key,ticket_category_fields)
+        else:
+            #no customfield so make new one.
+            ticket_category_fields = {}
+            ticket_category_fields['fields']={}
+            ticket_category_fields["fields"][customfield] = values
+            logging.debug('%s - %s' %(key,ticket_category_fields))
+            self.response = self.updateissue(key,ticket_category_fields)
+        return self.response
+
 
     def updateissue(self, key, payloads):
         # update issue
@@ -127,7 +142,6 @@ class Handler_Jira():
         # logging.debug("update url: %s" %rest_url)
         self.response = self.session.put(rest_url, data=jason.makeplayload(self.payload), headers=headers,
                                          timeout=10.0)
-        logging.debug(self.response.text)
         logging.debug("Done: %s and code: %s" %(self.key, self.response.status_code))
         return self.response
 
@@ -218,6 +232,21 @@ class Handler_Jira():
             self.updateissue(key,playloads)
         return 0
     
+    def delete_label(self, key = None, label = None):
+        #find label list
+        exist_labels = self.searchIssueByKey(key)['fields']['labels']
+        #pass if label exist in labels
+        if label in exist_labels:
+            logging.debug(f'{exist_labels} - so remove {label}')
+            exist_labels.remove(label)
+            playloads = {"fields":{"labels":''}}
+            playloads['fields']['labels'] = exist_labels
+            logging.debug(playloads)
+            self.updateissue(key,playloads)
+        else:
+            logging.debug(f'{label} is not included of labes - {exist_labels}')
+        return 0
+    
     def getworklogdetail(self, id):
         self.id = id
         rest_url = self.jira_url+'/rest/tempo-timesheets/3/worklogs/%s' %id
@@ -257,14 +286,21 @@ class Handler_Jira():
         return self.r
 
 
-    def web_link(self,key = None,title = None,url = None):
-        self.playload = {
-            "object": {"url": "%s" %url,"title": "%s" %title}
-                }
-        url = f'{self.jira_url}/rest/api/2/issue/{key}/remotelink'
-        self.r = self.session.post(url, data=jason.makeplayload(self.playload), headers=headers,
-                                          timeout=10.0)
-        return self.r
+    def web_link(self, key = None, title = None, url = None):
+        self.key = key
+        rest_url = self.jira_url+'/rest/api/2/issue/%s/remotelink' %self.key
+        self.response = self.session.get(rest_url, timeout=10.0).json()
+        if url in str(self.response):
+            logging.debug(f'url already linked - {url}')
+            return json.dumps({})
+        else:
+            self.playload = {
+                "object": {"url": "%s" %url,"title": "%s" %title}
+                    }
+            url = f'{self.jira_url}/rest/api/2/issue/{key}/remotelink'
+            self.r = self.session.post(url, data=jason.makeplayload(self.playload), headers=headers,
+                                            timeout=10.0)
+            return self.r
 
     # =================================== LOG WORK =============================================
 
@@ -274,6 +310,7 @@ class Handler_Jira():
         self.response = self.session.post(rest_url, data=jason.makeplayload(self.playload), headers=headers,
                                           timeout=10.0)
         return self.response
+
 
 
 class Handler_TestCycle():
@@ -293,42 +330,104 @@ class Handler_TestCycle():
         self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0).json()
         return self.response['username']
 
-    def getTestCycle(self):
-        # /rest/zapi/latest/execution?issueId=&projectId=&versionId=&cycleId=&offset=&action=&sorter=&expand=&limit=&folderId=
-        self.type = 'version-16024-cycle-3111'
-        rest_url = self.jira_url+"/rest/zapi/latest/execution?versionId=%s" %self.type
+    
+    def get_test_execution_by_query(self, test_execution_query):
+        #http://localhost:2990/jira/rest/zapi/latest/zql/executeSearch?zqlQuery=&filterId=&offset=&maxRecords=&expand=
+        rest_url = self.jira_url+'/rest/zapi/latest/zql/executeSearch?zqlQuery=folderId=7894&cycleId=7008'
+        rest_url = self.jira_url+'/rest/zapi/latest/zql/executeSearch?zqlQuery=id="1604554"'
+        rest_url = self.jira_url+'/rest/zapi/latest/zql/executeSearch?zqlQuery=%s' %test_execution_query
+        logging.info(rest_url)
         self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         logging.debug(self.response)
-        logging.debug(self.response.text)
+        return self.response
 
-    def getExecutionInfo(self, excution_id):
+    def get_test_execution_by_id(self, excution_id):
         # http://localhost:2990/jira/rest/zapi/latest/execution/id?expand=
-        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s?expand=" %excution_id
+        rest_url = self.jira_url+ f"/rest/zapi/latest/execution/{excution_id}?expand="
         self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
-    def updateExecution(self, excution_id=None, playloads=None):
+
+    def update_test_execution(self, excution_id=None, playloads=None):
         # http://localhost:2990/jira/rest/zapi/latest/execution/id/execute
-        rest_url = self.jira_url+"/rest/zapi/latest/execution/%s/execute" %excution_id
+        rest_url = self.jira_url+ f"/rest/zapi/latest/execution/{excution_id}/execute"
         self.payloads = playloads
-        self.response = self.session.put(rest_url, data=self.payloads,
-                                         headers=self.zephyr_headers, timeout=10.0)
+        self.response = self.session.put(rest_url, data=self.payloads,headers=self.zephyr_headers, timeout=10.0)
         return self.response
     
-    def updateStep(self,stepid= None, playloads=None):
+    def update_test_step(self,stepid= None, playloads=None):
         rest_url = self.jira_url+"/rest/zapi/latest/stepResult/%s" %stepid
         self.payloads = playloads
-        self.response = self.session.put(rest_url, data=self.payloads,
-                                         headers=self.zephyr_headers, timeout=10.0)
+        self.response = self.session.put(rest_url, data=self.payloads,headers=self.zephyr_headers, timeout=10.0)
         return self.response
 
-    def createTestCycle(self):
-        pass
+    def get_test_cycle_info(self, cycle_id):
+        #http://localhost:2990/jira/rest/zapi/latest/cycle/id
+        rest_url = self.jira_url+'/rest/zapi/latest/cycle/%s' %cycle_id
+        logging.info(rest_url)
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
+        logging.debug(self.response)
+        return self.response
 
-    def get_TestCase(self, key):
+    def get_folder_from_test_cycle_id(self, cycle_id):
+        #CycleResource/Get 
+        # the list of folder for a cycle/Get the list of folder for a cycle
+        # GET 
+        # http://localhost:2990/jira/rest/zapi/latest/cycle/{cycleId}/folders?projectId=&versionId=&limit=&offset=
+        #get project id and version id 
+        self.test_cycle_info = self.get_test_cycle_info(cycle_id=cycle_id)
+        self.test_cycle_info = jason.make_json(self.test_cycle_info.text)
+        self.project_id = self.test_cycle_info['projectId']
+        self.version_id = self.test_cycle_info['versionId']
+        rest_url = self.jira_url+ f'/rest/zapi/latest/cycle/{cycle_id}/folders?projectId={self.project_id}&versionId={self.version_id}&limit=&offset='
+        logging.info(rest_url)
+        self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
+        logging.debug(self.response)
+        return self.response
+
+    def move_test_execution_into_folder(self, cycle_id, folder_id):
+        # selected executions or all executions from cycle to folder
+        #PUT http://localhost:2990/jira/rest/zapi/latest/cycle/{cycleId}/move/executions/folder/{folderId}
+        rest_url = self.jira_url+f"/rest/zapi/latest/cycle/{cycle_id}/move/executions/folder/{folder_id}"
+        logging.info(rest_url)
+        self.payloads = {
+            "projectId":11801,
+            "versionId":20185, 
+            "schedulesList":[]
+            }
+        self.response = self.session.put(rest_url,data=jason.makeplayload(self.payloads),headers=self.zephyr_headers, timeout=10.0)
+        logging.debug(self.response.text)
+        return self.response
+
+
+#===============================================================================================================
+
+    def move_test_execution(self):
+        #http://localhost:2990/jira/rest/zapi/latest/cycle/{id}/move
+        return 0
+
+    def get_all_execution_by_test_zephyr(self, key):
         rest_url = self.jira_url+"/rest/zapi/latest/execution/%s/execute" %key
         self.response = self.session.get(rest_url, headers=self.zephyr_headers, timeout=10.0)
         return self.response
+
+    def createFolder(self, cycle_id ,folder_name, description ,project_id, version_id):
+        #http://localhost:2990/jira/rest/zapi/latest/folder/create
+        rest_url = self.jira_url+"/rest/zapi/latest/folder/create"
+        self.payloads = {
+            "cycleId": cycle_id,
+            "name": folder_name,
+            "description": description,
+            "projectId": project_id,
+            "versionId": version_id,
+            "clonedFolderId": -1
+            }
+        self.response = self.session.post(rest_url, data=jason.makeplayload(self.payloads),headers=self.zephyr_headers, timeout=10.0)
+        logging.debug(self.response)
+        return self.response
+
+    def t4aet(self):
+        pass
 
     def add_TestCase(self, key):
         self.key = key
