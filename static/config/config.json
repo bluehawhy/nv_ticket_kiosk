@@ -1,0 +1,11 @@
+{
+	"last_file_path": "D:/_source/source_code/nv_ticket_kiosk/static/excel/ticket_kiosk_v3.0.xlsx",
+	"id": "miskang",
+	"password": "Zjavhwmzjvl26@1",
+	"jira_url": "http://jira.navis-ams.com:8080",
+	"test_cycle_url": "http://jira.navis-ams.com:8080/secure/enav/#/",
+	"message_path": "_logs\\output.txt",
+	"qss_path": "static\\css\\style.qss",
+	"worksheet": "ZFJ-Executions-11-25-2022",
+	"version": "v1.0"
+}

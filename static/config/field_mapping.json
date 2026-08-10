@@ -1,29 +1,52 @@
 {
-    "field_list":{
-        "summary":"summary",
-        "description":"description",
-        "priority":"priority",
-        "project":"project",
-        "issuetype":"issuetype", 
-        "test_environment":"customfield_12238",
-        "SW_Version":"customfield_10824",
-        "HU_Version":"customfield_10826",
-        "Map_Version (List)":"customfield_12242",
-        "HW_Version":"customfield_12204",
-        "occurrence":"customfield_11101",
-        "ticket_category":"customfield_13003",
-        "variant":"customfield_11102",
-        "system_component":"customfield_13005",
-        "System (List)":"customfield_14025",
-        "market":"customfield_11223",
-        "Found Date": "customfield_10136",
-        "Entry Code": "customfield_11103"
+	"custumfield_list":{
+		"summary":"-",
+		"description":"-",
+		"priority":{"name":"-"},
+		"project":{"key":"-"},
+		"issuetype":{"name":"Bug"},
+		"components":[{"name":"TQA"}],
+		"customfield_12238":{"value":"-"},
+		"customfield_10824":"-",
+		"customfield_10826":"-",
+		"customfield_12242":{"value":"-"},
+		"customfield_12204":{"value":"-"},
+		"customfield_11101":{"value":"-"},
+		"customfield_13003":{"value":"-"},
+		"customfield_11102":[{"value":"-"}],
+		"customfield_10136":"-",
+		"customfield_14025":{"value":"-"},
+		"customfield_17712":{"value":"-"}
+	},
+    "mapping_field_list":{
+		"summary": "summary",
+		"description": "description",
+		"priority": "priority",
+		"project": "Project",
+		"issuetype": "issuetype",
+		"customfield_12238": "Test_environment",
+		"customfield_10824": "Navi_version",
+		"customfield_10826": "HU_version",
+		"customfield_12242": "Map_version",
+		"customfield_12204": "HW_Version",
+		"customfield_11101": "occurrence",
+		"customfield_13003": "ticket_category",
+		"customfield_11102": "variant",
+		"customfield_13005": "System_Component",
+		"customfield_14025": "System_(List)",
+		"customfield_11223": "market",
+		"customfield_10136": "Found_Date",
+		"customfield_11103": "Entry Code",
+		"customfield_17712": "FunctCategoryMain",
+		"version":"1.0"
     },
-	"ticket": {
+	"change_field_value": {
 		"project": {
 			"NTG7": "DAIMS",
 			"Gen20x.i2": "GEN20X",
-			"Gen20x.i3": "GEN20XI3"
+			"Gen20x.i3": "GEN20XI3",
+			"IST8":"IST8",
+			"NKM":"NKM"
 		},
 		"map_version_market": [
 			"SEA",
@@ -54,7 +77,8 @@
 			"CHN": "China"
 		},
 		"project_ignore_mapversion": [
-			"Gen20x.i3"
+			"GEN20XI3",
+			"IST8"
 		]
     }
 

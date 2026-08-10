@@ -1,82 +1,106 @@
 #!/usr/bin/python
-# __init__.py
+# loggas.py
 # -*- coding: utf-8 -*-
 
-# import library in other folder
 import os
-import logging.handlers
-
-from . import filas
-
-from pathlib import Path
+import sys
+import logging
+import platform
 from datetime import datetime
+from pathlib import Path
 
-__all__ = (
-    'util_logger'
-)
-__version__ = '0.1.0'
+__all__ = ('logger', 'makeLogger', 'input_message', 'remove_message')
+__version__ = '0.3.0'
+__modi_date__ = "2026-06-24"
+
+# ==========================================
+# [기존 filas.py 통합 영역] 구동 환경 및 시간 정보
+# ==========================================
+operation = platform.system()
+now = datetime.now()
+
+# YYYYMMDD_HHMMSS 포맷 생성
+now_date_time = now.strftime('%Y%m%d_%H%M%S')
+
+# PyInstaller(.exe) 실행 환경 검스 및 파일명/경로 추출
+if getattr(sys, 'frozen', False):
+    # .exe 패키징 실행 시
+    main_path = os.path.dirname(sys.executable)
+    # 확장자(.exe)를 제거한 실행 파일명 추출
+    executed_file_name = Path(sys.executable).stem
+else:
+    # .py 스크립트 실행 시
+    main_path = os.getcwd()
+    executed_file_name = Path(sys.argv[0]).stem
+
+# 모듈 자체의 물리적 위치 (필요시 참조)
+filepath_abspath = os.path.dirname(os.path.abspath(__file__))
 
 
-
-
-def remove_message(message_path = None):
-    os.remove(message_path) if Path(message_path).exists() else None
+# ==========================================
+# 유틸리티 함수 영역
+# ==========================================
+def remove_message(message_path=None):
+    if message_path and Path(message_path).exists():
+        os.remove(message_path)
     return None
 
-def input_message(path = None, message = None, settime=True):
-    now = str(datetime.now())[0:19]
-    f = open(path,'a')
-    if settime == True: 
-        f.write(now+' '+message+'\n')
-    if settime == False:
-        f.write(message+'\n')
-    f.close()
+
+def input_message(path=None, message=None, settime=True):
+    if not path or message is None:
+        return None
+        
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open(path, 'a', encoding='utf-8') as f:
+        if settime:
+            f.write(f"{now_str} {message}\n")
+        else:
+            f.write(f"{message}\n")
     return None
 
-def makeLogger(logfile):
-    # print('start logger rootpath: '+ rootpath)
-    loggerger = logging.getLogger(__name__)
-    # to set log location :  filename='./log/worklogger.log'
-    #loggerger.setLevel(level=logging.INFO)
-    loggerger.setLevel(level=logging.DEBUG)
-    file_max_bytes = 10 * 1024 * 1024
 
-    fileHandler = logging.handlers.RotatingFileHandler(filename=logfile, maxBytes=file_max_bytes, backupCount=10)
+def set_debug_logging(is_debug):
+    global logger
+    if is_debug:
+        formatter = logging.Formatter('[%(levelname)s|%(filename)s:%(lineno)s] %(asctime)s > %(message)s')
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(formatter)
+        logger.addHandler(streamHandler)
 
-    # formmater setting
+
+# ==========================================
+# 로거 초기화 및 실행 영역
+# ==========================================
+def makeLogger(logfile_name, is_debug=False):
+    # _logs 폴더 생성 (상대 경로 및 공백 경로 문제 방지)
+    log_folder_path = os.path.join(main_path, '_logs')
+    os.makedirs(log_folder_path, exist_ok=True)
+
+    # 로그 파일 전체 경로
+    log_file_path = os.path.join(log_folder_path, logfile_name)
+
+    logger = logging.getLogger()
+    
+    # 중복 핸들러 초기화
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    level = logging.DEBUG if is_debug else logging.INFO
+    logger.setLevel(level)
+
     formatter = logging.Formatter('[%(levelname)s|%(filename)s:%(lineno)s] %(asctime)s > %(message)s')
 
-    # set value fileHandler and StreamHandler
-    fileHandler = logging.FileHandler(filename=logfile,encoding='utf-8')
-    streamHandler = logging.StreamHandler()
+    # 파일 핸들러 추가
+    file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-    # set handler and fommater
-    fileHandler.setFormatter(formatter)
-    streamHandler.setFormatter(formatter)
-
-    # start logging hander
-    loggerger.addHandler(fileHandler)
-    loggerger.addHandler(streamHandler)
-    loggerger.info("start dev logging in the path : %s" %logfile)
-    return loggerger
-
-# Print header for log in Jenkins
-def print_header(text: str, max_width=80):
-    separator = '=' * max_width
-    logging.info("\n{sep}\n{text}\n{sep}\n".format(
-        sep=separator, text=text.center(max_width)))
-
-# Print header for log in Jenkins
-def print_method(method):
-    def main(*args, **kwargs):
-        logging.debug(f'[START] {method.__name__}')
-        result = method(*args, **kwargs)
-        logging.debug(f'[DONE] {method.__name__}')
-        return result
-    return main
+    logging.info(f"Logger initialized. Path: {log_file_path}")
+    return logger
 
 
-log_file_name = '%s_%s.log' % (filas.executed_file_name, filas.now_date_time)
-log_folder_name = os.path.join('_logs')
-log_full_name = os.path.join(log_folder_name, log_file_name)
-logger = makeLogger(log_full_name)
+# --- 실 상용 로거 생성부 ---
+# filas 제거 후 내부 변수(executed_file_name, now_date_time)를 직접 사용합니다.
+log_file_name = f"{executed_file_name}_{now_date_time}.log"
+
+logger = makeLogger(log_file_name, is_debug=False)

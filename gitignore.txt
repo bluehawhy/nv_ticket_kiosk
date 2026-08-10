@@ -1,0 +1,5 @@
+# Hidden directory on Windows (no dot)
+__pycache__/
+*.xlsx
+template/readMe/
+*.log

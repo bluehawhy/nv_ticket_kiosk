@@ -1,26 +1,22 @@
 import os, sys
-
+from PyQt6.QtWidgets import QApplication
 
 #add internal libary
-from _src import ticket_kiosk_cmd, ticket_kiosk
+from _src import ticket_kiosk, ticket_kiosk_ui
 
 refer_api = "local"
 #refer_api = "global"
 
-if refer_api == "global":
-    sys.path.append((os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
-    from _api import loggas, configus
 if refer_api == "local":
     from _src._api import loggas, configus
 
 logging= loggas.logger
-logging_file_name = loggas.log_full_name
 
 config_path = os.path.join('static','config','config.json')
 message_path =configus.load_config(config_path)['message_path']
 
 config_data = configus.load_config(config_path)
-version = 'ticket kiosk v2.0'
+version = 'ticket kiosk v4.0'
 
 revision_list=[
     'Revision list',
@@ -28,6 +24,8 @@ revision_list=[
     'v1.01 (2023-07-11) : bug fix',
     'v1.02 (2024-04-18) : bug fix',
     'v2.0 (2024-04-18)  : modify code to refer to only json and exce flie',
+    'v3.0 (2024-04-18)  : modify excel sheet and referance value (must use v3.0 excel)',
+    'v4.0 (2026-03-11)  : add UI',
     '==============================================================================='
     ]
 
@@ -36,16 +34,19 @@ def message_on():
         loggas.remove_message(message_path)
     for revision in revision_list:
         loggas.input_message(path = message_path,message = revision, settime= False)
-    return 0
+    return
+
 
 
 def debug_mode():
-    ticket_kiosk.import_ticket(user=config_data['id'],password=config_data['password'],exce_path=config_data['last_file_path'])
-    return 0
+    return
+
 
 def prod_mode():
-    cmd = ticket_kiosk_cmd.cmd_line(version,revision_list)
-    cmd.main()
+    app = QApplication(sys.argv)
+    window = ticket_kiosk_ui.TicketKioskWindow(version, revision_list)
+    window.show()
+    sys.exit(app.exec())
 
 if __name__ =='__main__':
     prod_mode()

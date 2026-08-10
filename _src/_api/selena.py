@@ -1,7 +1,12 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+#!/usr/bin/python
+# excel.py
+# -*- coding: utf-8 -*-
+
+'''
+Created on 2019. 1. 14.
+Updated on 2026. 1. 21.
+@author: miskang
+'''
 
 import time
 import re
@@ -9,10 +14,18 @@ import os
 import zipfile
 import requests
 
-
-
 #add internal libary
 from . import loggas, configus
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
+
+
 
 #make logpath
 logging= loggas.logger
@@ -63,38 +76,26 @@ def get_chrome_driver(selenium_path=selenium_path):
         selenium_data['chorme_driver_downloader_url'] = newest_chorme_driver_downloader_url
         configus.save_config(selenium_data,selenium_path)
         return 0
-
-def get_chrome_drive_version():
-    chromedriver = r'C:\dev_python\Webdriver\chromedriver.exe'
-    driver = webdriver.Chrome(chromedriver)
-    print(driver.capabilities['browserVersion'])
-    return 0
-
 #=================================================================================================
 # main function
 def call_drivier(headless=None):
     #set up chromedriver
     selenium_data = configus.load_config(selenium_path)
-    options = webdriver.ChromeOptions()
+    options = Options()
     #options.add_argument('disable-gpu')
     options.add_argument('lang=ko_KR')
-    logging.info(headless)
+    #logging.info(headless)
     if headless == "False":
         logging.info(f'headless is {headless}')
         options.add_argument('headless') # HeadlessChrome 사용시 브라우저를 켜지않고 크롤링할 수 있게 해줌
     else:
         options.add_argument('window-size=1920x1080')
-
     #options.add_argument('User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36')
     # 헤더에 headless chrome 임을 나타내는 내용을 진짜 컴퓨터처럼 바꿔줌.
-    try:
-        logging.info('check chromedriver version')
-        get_chrome_driver()
-        driver = webdriver.Chrome(selenium_data["chromedriver"],options=options)
-        return driver
-    except:
-        logging.info('loading chromedriver failed')
-        return None
+
+    logging.info('check chromedriver version')
+    driver = webdriver.Chrome(options=options)
+    return driver
 #=================================================================================================
 #=============================== xpath handler ===================================================
 
