@@ -1,18 +1,17 @@
 import os, sys
 from PyQt6.QtWidgets import QApplication
 
-#add internal libary
-from _src import ticket_kiosk, ticket_kiosk_ui
+# 1. 유틸리티 (설정, 로거 등)
+from src.utils import loggas, configus
 
-refer_api = "local"
-#refer_api = "global"
-
-if refer_api == "local":
-    from _src._api import loggas, configus
+# 2. 핵심 로직 및 디바이스 제어 모듈 (core)
+from src.ui import (
+    ticket_kiosk_ui     
+)
 
 logging= loggas.logger
 
-config_path = os.path.join('static','config','config.json')
+config_path = os.path.join('resources','config','config.json')
 message_path =configus.load_config(config_path)['message_path']
 
 config_data = configus.load_config(config_path)
@@ -36,11 +35,8 @@ def message_on():
         loggas.input_message(path = message_path,message = revision, settime= False)
     return
 
-
-
 def debug_mode():
     return
-
 
 def prod_mode():
     app = QApplication(sys.argv)

@@ -3,19 +3,12 @@ import datetime
 import re
 import ast
 
-refer_api = "local"
-#refer_api = "global"
-
-if refer_api == "global":
-    sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
-    from _api import loggas, configus, excelium, zyra
-if refer_api == "local":
-    from _src._api import loggas, configus, excelium, zyra
+from ..utils import loggas, configus, excelium, zyra
 
 logging= loggas.logger
 
-config_path = os.path.join('static','config','config.json')
-field_mapping_path = os.path.join('static','config','field_mapping.json')
+config_path = os.path.join('resources','config','config.json')
+field_mapping_path = os.path.join('resources','config','field_mapping.json')
 
 message_path =configus.load_config(config_path)['message_path']
 

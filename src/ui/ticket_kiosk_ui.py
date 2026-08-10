@@ -8,11 +8,11 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QTextCursor, QFont, QColor
 
 # 기존 로직 모듈 임포트
-from _src import ticket_kiosk
-from _src._api import configus
+from ..core import ticket_kiosk
+from ..utils import configus
 
 # 설정 경로
-config_path = os.path.join('static', 'config', 'config.json')
+config_path = os.path.join('resources', 'config', 'config.json')
 
 # --- 1. 로그 가로채기 클래스 ---
 class StreamToLogger(QObject):

@@ -21,7 +21,7 @@ from . import loggas
 from . import jason
 from . import configus
 
-config_path = os.path.join('static','config','config.json')
+config_path = os.path.join('resources','config','config.json')
 config_data =configus.load_config(config_path)
 logging = loggas.logger
 # =============================================================================================
