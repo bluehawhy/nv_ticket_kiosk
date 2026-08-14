@@ -14,17 +14,25 @@ from ..utils import configus
 # 설정 경로
 config_path = os.path.join('resources', 'config', 'config.json')
 
+
 # --- 1. 로그 가로채기 클래스 ---
 class StreamToLogger(QObject):
     log_written = pyqtSignal(str)
+
     def write(self, text):
-        if text.strip():
-            self.log_written.emit(text.strip())
-    def flush(self): pass
+        # 빈 줄 및 개행 문자 정제 후 출력 시그널 발생
+        clean_text = text.strip()
+        if clean_text:
+            self.log_written.emit(clean_text)
+
+    def flush(self):
+        pass
+
 
 # --- 2. 백그라운드 작업 스레드 ---
 class Worker(QThread):
     finished = pyqtSignal(str)
+
     def __init__(self, func, *args):
         super().__init__()
         self.func = func
@@ -32,10 +40,12 @@ class Worker(QThread):
 
     def run(self):
         try:
+            # 외부 함수 실행
             self.func(*self.args)
             self.finished.emit("Success")
         except Exception as e:
             self.finished.emit(f"Error: {str(e)}")
+
 
 # --- 3. 메인 GUI 클래스 ---
 class TicketKioskWindow(QMainWindow):
@@ -54,7 +64,7 @@ class TicketKioskWindow(QMainWindow):
 
         self.init_ui()
         
-        # 시스템 출력 가로채기
+        # [핵심] 표준 출력(sys.stdout) 가로채기 설정
         self.stdout_receiver = StreamToLogger()
         self.stdout_receiver.log_written.connect(self.log)
         sys.stdout = self.stdout_receiver
@@ -70,7 +80,7 @@ class TicketKioskWindow(QMainWindow):
         central_widget.setObjectName("mainWidget")
         self.setCentralWidget(central_widget)
 
-        # QSS 스타일시트 (분리된 라벨 및 폴더 버튼 스타일 추가)
+        # QSS 스타일시트
         self.setStyleSheet("""
             #mainWidget {
                 background-color: rgba(255, 255, 255, 0.8); 
@@ -155,7 +165,7 @@ class TicketKioskWindow(QMainWindow):
         content_layout.setContentsMargins(20, 15, 20, 20)
         content_layout.setSpacing(12)
 
-        # --- 아이디 표시 ---
+        # USER ID
         id_label = QLabel("USER ID")
         id_label.setProperty("class", "sectionLabel")
         content_layout.addWidget(id_label)
@@ -164,7 +174,7 @@ class TicketKioskWindow(QMainWindow):
         self.id_display.setProperty("class", "infoLabel")
         content_layout.addWidget(self.id_display)
 
-        # --- 엑셀 경로 표시 + 폴더 버튼 ---
+        # EXCEL FILE PATH
         path_label = QLabel("EXCEL FILE PATH")
         path_label.setProperty("class", "sectionLabel")
         content_layout.addWidget(path_label)
@@ -183,7 +193,7 @@ class TicketKioskWindow(QMainWindow):
         path_box.addWidget(self.btn_folder)
         content_layout.addLayout(path_box)
 
-        # 메인 명령 버튼들
+        # MAIN COMMANDS
         cmd_label = QLabel("MAIN COMMANDS")
         cmd_label.setProperty("class", "sectionLabel")
         content_layout.addWidget(cmd_label)
@@ -199,7 +209,7 @@ class TicketKioskWindow(QMainWindow):
         btn_layout.addWidget(self.btn_create)
         content_layout.addLayout(btn_layout)
 
-        # 로그 터미널
+        # EXECUTION LOG (QTextEdit)
         log_label = QLabel("EXECUTION LOG")
         log_label.setProperty("class", "sectionLabel")
         content_layout.addWidget(log_label)
@@ -210,37 +220,34 @@ class TicketKioskWindow(QMainWindow):
 
         master_layout.addWidget(content_area)
         
-        # 데이터 로드
         self.refresh_config_info()
 
     # --- 기능 함수들 ---
     def log(self, text):
+        """QTextEdit에 로그를 시간과 함께 스레드 안심 출력"""
         self.log_display.append(f"[{time.strftime('%H:%M:%S')}] {text}")
         self.log_display.moveCursor(QTextCursor.MoveOperation.End)
 
     def refresh_config_info(self):
-        """기존 info_display 대신 id_display와 path_display를 업데이트합니다."""
         try:
-            # configus.load_config가 정상 작동한다는 전제 하에 작성
             data = configus.load_config(config_path)
             user_id = data.get('id', 'N/A')
             file_path = data.get('last_file_path', 'Not Set')
             
             self.id_display.setText(user_id)
             self.path_display.setText(file_path)
-            self.last_path = file_path # 폴더 열기용 저장
+            self.last_path = file_path
         except Exception as e:
             self.log(f"Config Error: {e}")
 
     def open_explorer(self):
-        """엑셀 파일이 있는 폴더를 탐색기로 엽니다."""
         if not self.last_path or self.last_path == "Not Set":
             self.log("No path information available.")
             return
             
         folder_path = os.path.dirname(self.last_path)
         if os.path.exists(folder_path):
-            os.startfile(folder_path) # 윈도우 탐색기 호출
+            os.startfile(folder_path)
             self.log(f"Opened Folder: {folder_path}")
         else:
             self.log("Path not found.")
@@ -268,7 +275,6 @@ class TicketKioskWindow(QMainWindow):
                 sheet_name, ok = QInputDialog.getItem(self, "Select Sheet", "Select Worksheet:", sheets, 0, False)
                 
                 if ok and sheet_name:
-                    # 파일 경로가 업데이트되었으므로 config 저장 및 UI 갱신
                     data["last_file_path"] = file_path
                     configus.save_config(data, config_path)
                     self.refresh_config_info()
@@ -284,7 +290,7 @@ class TicketKioskWindow(QMainWindow):
         worker.start()
         self.workers.append(worker)
 
-    # 창 이동 이벤트 (기존 코드 유지)
+    # 창 이동 이벤트
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_pos = event.globalPosition().toPoint()

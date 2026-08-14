@@ -1,4 +1,4 @@
-import os, sys
+import os
 import datetime
 import re
 import ast
@@ -7,10 +7,29 @@ from ..utils import loggas, configus, excelium, zyra
 
 logging= loggas.logger
 
-config_path = os.path.join('resources','config','config.json')
-field_mapping_path = os.path.join('resources','config','field_mapping.json')
 
-message_path =configus.load_config(config_path)['message_path']
+class ConfigManager:
+    """1. 설정 및 매핑 파일 관리"""
+    
+    def __init__(
+        self, 
+        config_path: str | None = None,
+        mapping_path: str | None = None
+    ):
+        # 인자값이 전달되지 않았으면 기본 경로 지정
+        self.config_path = config_path or os.path.join('resources', 'config', 'config.json')
+        self.mapping_path = mapping_path or os.path.join('resources', 'config', 'field_mapping.json')
+        
+        self.config = configus.load_config(self.config_path)
+        self.mapping = configus.load_config(self.mapping_path)
+
+    @property
+    def jira_url(self) -> str:
+        return self.config.get('jira_url', '')
+
+    def save_last_path(self, excel_path: str):
+        self.config['last_file_path'] = excel_path
+        configus.save_config(self.config, self.config_path)
 
 #==========================================================================================
 #==========================================================================================
@@ -26,6 +45,16 @@ def verify_excel_file(worksheet=None):
         logging.debug('col A is not Ticket List')
         return False
     return True
+
+
+def get_col_attribute(worksheet=None):
+    list_a_column = [c.value for c in worksheet['A']]
+    cnt_ticket_index = list_a_column.index('Ticket List')
+    list_col_attribute = [r.value for r in worksheet[cnt_ticket_index+2]]
+    logging.debug('cnt_ticket_index - %s' %str(cnt_ticket_index))
+    logging.debug('list_col_attribute - %s' %str(list_col_attribute))
+    return cnt_ticket_index, list_col_attribute
+
 
 #==========================================================================================
 #==========================================================================================
@@ -49,13 +78,6 @@ def get_system_info_from_ws(worksheet=None):
     logging.info('get system info done')
     return system_info
 
-def get_col_attribute(worksheet=None):
-    list_a_column = [c.value for c in worksheet['A']]
-    cnt_ticket_index = list_a_column.index('Ticket List')
-    list_col_attribute = [r.value for r in worksheet[cnt_ticket_index+2]]
-    logging.debug('cnt_ticket_index - %s' %str(cnt_ticket_index))
-    logging.debug('list_col_attribute - %s' %str(list_col_attribute))
-    return cnt_ticket_index, list_col_attribute
 
 def get_market_variant_from_map_ver(map_version):
     field_mapping_data = configus.load_config(field_mapping_path)
